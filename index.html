@@ -27,6 +27,18 @@ select{appearance:none;background:var(--sf) url("data:image/svg+xml,%3Csvg xmlns
 .seg button{border:0;background:none;padding:9px 14px;font-size:15px;min-height:42px;color:var(--mute)}
 .seg button[aria-pressed=true]{background:var(--ac);color:var(--sf)}
 .sub{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-top:10px;font-size:14px;color:var(--mute)}
+#cari{display:none;flex:1 1 180px;background:var(--sf);border:1px solid var(--line);border-radius:10px;padding:7px 12px;font:inherit;font-size:16px;color:var(--ink);min-height:38px}
+body.key #cari{display:block}body.key .qz,body.key .prog,body.key #det,body.key #score{display:none}
+body.key .prog+main{margin-top:22px}
+.ki{padding:22px 0;border-bottom:1px solid var(--line)}.ki:first-child{padding-top:4px}
+.ki .qt{font-size:17px;margin-bottom:12px}
+.kl{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.kl li{display:flex;gap:12px;padding:8px 12px;border-radius:10px;font-size:16px;color:var(--mute)}
+.kl li .k{flex:none;width:20px;font-weight:600}
+.kl li.ok{background:var(--okb);color:var(--ink);box-shadow:inset 3px 0 0 var(--ok)}.kl li.ok .k{color:var(--ok)}
+.kl li .chk{margin-left:auto;flex:none;color:var(--ok);font-weight:600;font-size:14px;white-space:nowrap}
+.ke{margin-top:10px;font-size:15px;color:var(--mute)}.ke .w{color:var(--wi);font-size:14px}
+.empty{color:var(--mute);padding:20px 0}
 .sub select{font-size:14px;min-height:38px;padding-block:6px}
 .link{border:0;background:none;padding:6px 2px;color:var(--mute);text-decoration:underline;text-underline-offset:3px;font-size:14px}
 .link:hover{color:var(--ink)}
@@ -71,11 +83,12 @@ summary{cursor:pointer;color:var(--mute);font-size:14px}
 <div class="wrap">
  <div class="top">
   <select id="course" aria-label="Mata kuliah"></select>
-  <div class="seg" role="group" aria-label="Mode"><button id="mLat">Latihan</button><button id="mUji">Ujian</button></div>
+  <div class="seg" role="group" aria-label="Mode"><button id="mLat">Latihan</button><button id="mUji">Ujian</button><button id="mKey">Kunci</button></div>
  </div>
  <div class="sub">
   <select id="topic" aria-label="Topik"></select>
-  <label><input type="checkbox" id="rnd"> Acak</label>
+  <input type="search" id="cari" placeholder="Cari kata di soal…" aria-label="Cari soal">
+  <label class="qz"><input type="checkbox" id="rnd"> Acak</label>
   <span class="sp"></span><span id="score"></span>
  </div>
  <div class="prog"><div id="pg"></div></div>
@@ -90,7 +103,7 @@ const L='ABCD',$=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const shuf=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
 const get=k=>{try{return localStorage.getItem(k)}catch(e){return null}},put=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
-let CI=Math.max(0,ALL.findIndex(c=>c.code===get('ut-latihan-mk'))),QS,TOP,KEY,S,tmr;
+let CI=Math.max(0,ALL.findIndex(c=>c.code===get('ut-latihan-mk'))),QS,TOP,KEY,S,tmr,VIEW=get('ut-latihan-view')==='kunci'?'kunci':'soal';
 const fresh=(mode,topic,rand,list)=>{const base=list||QS.filter(q=>topic<0||q.t===topic).map(q=>q.n);
  return{mode,topic,rand,order:rand?shuf(base):base,perm:Object.fromEntries(base.map(n=>[n,rand?shuf([0,1,2,3]):[0,1,2,3]])),ans:{},cur:0,done:false,res:false,start:Date.now(),end:0}};
 const Q=n=>QS[n-1],shown=n=>S.mode==='lat'?S.ans[n]!=null:S.done,right=n=>S.ans[n]===Q(n).a;
@@ -107,7 +120,9 @@ function load(ci){CI=ci;const c=ALL[ci];QS=c.qs;TOP=c.topics;KEY=c.code.toLowerC
  $('topic').innerHTML=`<option value="-1">Semua topik (${QS.length})</option>`+TOP.map((t,i)=>`<option value="${i}"${S.topic===i?' selected':''}>${esc(t)} (${QS.filter(q=>q.t===i).length})</option>`).join('');
  render()}
 function render(){
- $('mLat').setAttribute('aria-pressed',S.mode==='lat');$('mUji').setAttribute('aria-pressed',S.mode==='uji');$('rnd').checked=S.rand;$('topic').value=S.topic;
+ const K=VIEW==='kunci';document.body.classList.toggle('key',K);put('ut-latihan-view',VIEW);
+ $('mLat').setAttribute('aria-pressed',!K&&S.mode==='lat');$('mUji').setAttribute('aria-pressed',!K&&S.mode==='uji');$('mKey').setAttribute('aria-pressed',K);
+ if(K){$('topic').value=S.topic;clearInterval(tmr);return keys()}$('rnd').checked=S.rand;$('topic').value=S.topic;
  const ns=S.order,ans=ns.filter(n=>S.ans[n]!=null),ok=ans.filter(right).length;
  $('score').textContent=S.mode==='lat'||S.done?`${ok} benar · ${ans.length-ok} salah · ${ans.length}/${ns.length}`:`${ans.length}/${ns.length} dijawab`;
  $('pg').style.width=(ans.length/ns.length*100)+'%';
@@ -123,6 +138,11 @@ function card(){
  $('view').innerHTML=`<div class="meta">Soal ${S.cur+1} dari ${S.order.length} · ${esc(TOP[q.t])}${S.mode==='uji'&&!S.done?' · <span id="tm"></span>':''}${S.mode==='uji'&&S.done?' · <button class="link" id="showRes">Lihat nilai</button>':''}</div>
  <div class="qt">${fmtQ(q.q)}</div><div class="opts">${opts}</div>${ex}
  <div class="nav"><button class="btn" id="prev"${S.cur?'':' disabled'}>Sebelumnya</button><span class="sp"></span>${S.mode==='uji'&&!S.done&&!last?'<button class="btn" id="fin">Selesai</button>':''}${tail}</div>`}
+function keys(){const t=+$('topic').value,w=$('cari').value.trim().toLowerCase();
+ const list=QS.filter(q=>(t<0||q.t===t)&&(!w||(q.q+' '+q.o.join(' ')).toLowerCase().includes(w)));
+ $('view').innerHTML=list.length?list.map(q=>`<article class="ki"><div class="meta">No. ${q.n} · ${esc(TOP[q.t])}</div><div class="qt">${fmtQ(q.q)}</div>
+ <ul class="kl">${q.o.map((o,i)=>`<li class="${i===q.a?'ok':''}"><span class="k">${L[i]}</span><span class="tx${isCode(o)?' mono':''}">${esc(o)}</span>${i===q.a?'<span class="chk" aria-label="Jawaban benar">✓</span>':''}</li>`).join('')}</ul>
+ <div class="ke">${esc(q.e)}${q.f?' <span class="w">· Ambigu, cocokkan dengan BMP.</span>':''}</div></article>`).join(''):'<p class="empty">Tidak ada soal yang cocok.</p>'}
 function grid(){$('grid').innerHTML=S.order.map((n,i)=>{const a=S.ans[n];let c='cell';if(a!=null)c+=shown(n)?(right(n)?' g':' x'):' a';else if(shown(n))c+=' x';
  return`<button class="${c}${i===S.cur?' cur':''}" data-i="${i}">${i+1}</button>`}).join('')}
 function result(){const ns=S.order,ok=ns.filter(right).length,pct=Math.round(ok/ns.length*100),m=Math.max(1,Math.round((S.end-S.start)/60000));
@@ -136,19 +156,21 @@ function choose(oi){const n=S.order[S.cur];if(shown(n))return;S.ans[n]=oi;render
 function go(i){if(i<0||i>=S.order.length)return;S.cur=i;S.res=false;render()}
 const restart=list=>{S=fresh(S.mode,list?-1:S.topic,S.rand,list);render()};
 $('course').onchange=e=>load(+e.target.value);
-$('topic').onchange=e=>{S=fresh(S.mode,+e.target.value,S.rand);render()};
+$('topic').onchange=e=>{if(VIEW==='kunci')return keys();S=fresh(S.mode,+e.target.value,S.rand);render()};
+$('cari').oninput=()=>keys();
 $('rnd').onchange=e=>{S.rand=e.target.checked;restart()};
 document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;
  if(t.dataset.o!=null)return choose(+t.dataset.o);
  if(t.dataset.i!=null){go(+t.dataset.i);$('det').open=false;return scrollTo(0,0)}
  switch(t.id){case'prev':return go(S.cur-1);case'next':return go(S.cur+1);case'rst':return restart();
-  case'mLat':case'mUji':{const m=t.id==='mLat'?'lat':'uji';if(m!==S.mode){S=fresh(m,S.topic,m==='uji'||S.rand);render()}return}
+  case'mKey':VIEW='kunci';render();return scrollTo(0,0);
+  case'mLat':case'mUji':{const m=t.id==='mLat'?'lat':'uji',was=VIEW;VIEW='soal';if(m!==S.mode){const tp=was==='kunci'?+$('topic').value:S.topic;S=fresh(m,tp,m==='uji'||S.rand)}render();return}
   case'fin':S.done=true;S.end=Date.now();S.res=true;return render();
   case'showRes':S.res=true;return render();
   case'review':S.res=false;S.cur=0;return render();
   case'redo':{const w=S.order.filter(n=>!right(n));S.mode='lat';return restart(w)}
   case'again':return restart()}});
-document.addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey||e.altKey||/SELECT|INPUT/.test(e.target.tagName))return;const k=e.key.toUpperCase();
+document.addEventListener('keydown',e=>{if(VIEW==='kunci'||e.metaKey||e.ctrlKey||e.altKey||/SELECT|INPUT/.test(e.target.tagName))return;const k=e.key.toUpperCase();
  if(k.length===1&&L.includes(k)){const n=S.order[S.cur];if(n&&!S.res)choose(S.perm[n][L.indexOf(k)])}
  else if(e.key==='ArrowRight')go(S.cur+1);else if(e.key==='ArrowLeft')go(S.cur-1)});
 load(CI);
